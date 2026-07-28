@@ -33,18 +33,28 @@ export default function SignupPage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
       <h1 className="text-2xl font-bold">Crea tu cuenta</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label htmlFor="email" className="sr-only">
+          Email
+        </label>
         <input
+          id="email"
           type="email"
           required
+          autoComplete="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="rounded border px-3 py-2"
         />
+        <label htmlFor="password" className="sr-only">
+          Contraseña
+        </label>
         <input
+          id="password"
           type="password"
           required
           minLength={6}
+          autoComplete="new-password"
           placeholder="Contraseña (mín. 6 caracteres)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
