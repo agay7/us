@@ -1,23 +1,14 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getSessionAndMembership } from '@/lib/session'
 
 export default async function WelcomePage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user, spaceId } = await getSessionAndMembership()
 
   if (!user) {
     redirect('/login')
   }
 
-  const { data: membership } = await supabase
-    .from('space_members')
-    .select('space_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (membership) {
+  if (spaceId) {
     redirect('/inicio')
   }
 
