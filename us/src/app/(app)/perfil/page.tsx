@@ -17,7 +17,7 @@ export default function PerfilPage() {
       <h1 className="text-2xl font-bold">Perfil</h1>
       <button
         onClick={handleLogout}
-        className="mt-4 rounded bg-gray-200 px-4 py-2 text-sm"
+        className="mt-4 rounded bg-gray-200 px-4 py-2 text-sm text-gray-900"
       >
         Cerrar sesión
       </button>

@@ -58,7 +58,7 @@ export default function NewSpacePage() {
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">
         <h1 className="text-2xl font-bold">¡Space creado!</h1>
         <p>Comparte este código con tu pareja para que se una:</p>
-        <p className="rounded bg-gray-100 p-4 text-3xl font-mono tracking-widest">
+        <p className="rounded bg-gray-100 p-4 text-3xl font-mono tracking-widest text-gray-900">
           {inviteCode}
         </p>
         <button
@@ -82,7 +82,7 @@ export default function NewSpacePage() {
           id="space-name"
           required
           autoComplete="off"
-          placeholder='Ej. "Alberto & Marta"'
+          placeholder="Elige tu nombre de grupo"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="rounded border px-3 py-2"
