@@ -11,6 +11,16 @@ export default async function WelcomePage() {
     redirect('/login')
   }
 
+  const { data: membership } = await supabase
+    .from('space_members')
+    .select('space_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (membership) {
+    redirect('/inicio')
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">
       <h1 className="text-2xl font-bold">¡Bienvenido a Us!</h1>

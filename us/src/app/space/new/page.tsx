@@ -11,6 +11,7 @@ export default function NewSpacePage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [alreadyInSpace, setAlreadyInSpace] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,15 +28,29 @@ export default function NewSpacePage() {
     setLoading(false)
 
     if (error) {
-      setError(
-        error.message === 'already_in_space'
-          ? 'Ya perteneces a un space.'
-          : error.message
-      )
+      if (error.message === 'already_in_space') {
+        setAlreadyInSpace(true)
+      } else {
+        setError(error.message)
+      }
       return
     }
 
     setInviteCode(code)
+  }
+
+  if (alreadyInSpace) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">
+        <h1 className="text-2xl font-bold">Ya perteneces a un space</h1>
+        <button
+          onClick={() => router.push('/inicio')}
+          className="rounded bg-blue-600 py-2 text-white"
+        >
+          Ir a Inicio
+        </button>
+      </main>
+    )
   }
 
   if (inviteCode) {
@@ -60,8 +75,13 @@ export default function NewSpacePage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
       <h1 className="text-2xl font-bold">Crea tu space</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label htmlFor="space-name" className="sr-only">
+          Nombre del space
+        </label>
         <input
+          id="space-name"
           required
+          autoComplete="off"
           placeholder='Ej. "Alberto & Marta"'
           value={name}
           onChange={(e) => setName(e.target.value)}

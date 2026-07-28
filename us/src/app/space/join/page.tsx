@@ -10,6 +10,7 @@ export default function JoinSpacePage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [alreadyInSpace, setAlreadyInSpace] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,27 +30,48 @@ export default function JoinSpacePage() {
     setLoading(false)
 
     if (error) {
-      setError(
-        error.message === 'invalid_invite_code'
-          ? 'Ese código no corresponde a ningún space.'
-          : error.message === 'space_full'
-            ? 'Ese space ya tiene dos miembros.'
-            : error.message === 'already_in_space'
-              ? 'Ya perteneces a un space.'
+      if (error.message === 'already_in_space') {
+        setAlreadyInSpace(true)
+      } else {
+        setError(
+          error.message === 'invalid_invite_code'
+            ? 'Ese código no corresponde a ningún space.'
+            : error.message === 'space_full'
+              ? 'Ese space ya tiene dos miembros.'
               : error.message
-      )
+        )
+      }
       return
     }
 
     router.push('/inicio')
   }
 
+  if (alreadyInSpace) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">
+        <h1 className="text-2xl font-bold">Ya perteneces a un space</h1>
+        <button
+          onClick={() => router.push('/inicio')}
+          className="rounded bg-blue-600 py-2 text-white"
+        >
+          Ir a Inicio
+        </button>
+      </main>
+    )
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
       <h1 className="text-2xl font-bold">Únete a un space</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label htmlFor="invite-code" className="sr-only">
+          Código de invitación
+        </label>
         <input
+          id="invite-code"
           required
+          autoComplete="off"
           placeholder="Código de invitación"
           value={code}
           onChange={(e) => setCode(e.target.value)}
