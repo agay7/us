@@ -34,7 +34,9 @@ export default function JoinSpacePage() {
           ? 'Ese código no corresponde a ningún space.'
           : error.message === 'space_full'
             ? 'Ese space ya tiene dos miembros.'
-            : error.message
+            : error.message === 'already_in_space'
+              ? 'Ya perteneces a un space.'
+              : error.message
       )
       return
     }

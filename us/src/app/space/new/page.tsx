@@ -27,7 +27,11 @@ export default function NewSpacePage() {
     setLoading(false)
 
     if (error) {
-      setError(error.message)
+      setError(
+        error.message === 'already_in_space'
+          ? 'Ya perteneces a un space.'
+          : error.message
+      )
       return
     }
 
