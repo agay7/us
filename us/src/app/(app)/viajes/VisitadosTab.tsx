@@ -1,7 +1,7 @@
 // src/app/(app)/viajes/VisitadosTab.tsx
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatVisitSummary, type Participant } from '@/lib/viajes/formatVisit'
 import type { Zone } from '@/lib/viajes/zones'
@@ -19,8 +19,10 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
   const [visits, setVisits] = useState<VisitRow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const requestIdRef = useRef(0)
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
     const supabase = createClient()
     const { data } = await supabase
@@ -30,6 +32,8 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       )
       .eq('space_id', spaceId)
       .order('visited_at', { ascending: false })
+
+    if (requestId !== requestIdRef.current) return // a newer request already landed; discard this stale response
 
     setVisits((data as unknown as VisitRow[]) ?? [])
     setLoading(false)

@@ -1,7 +1,7 @@
 // src/app/(app)/viajes/PendientesTab.tsx
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { mergeWishlists, type WishlistEntry } from '@/lib/viajes/wishlistMerge'
 import { zoneLabel, type Zone } from '@/lib/viajes/zones'
@@ -25,8 +25,10 @@ export default function PendientesTab({
   const [rows, setRows] = useState<WishlistRow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const requestIdRef = useRef(0)
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
     const supabase = createClient()
     const { data } = await supabase
@@ -34,6 +36,8 @@ export default function PendientesTab({
       .select('id, rank, user_id, places(id, name, scope), profiles(display_name)')
       .eq('space_id', spaceId)
       .order('rank', { ascending: true })
+
+    if (requestId !== requestIdRef.current) return // a newer request already landed; discard this stale response
 
     setRows((data as unknown as WishlistRow[]) ?? [])
     setLoading(false)
