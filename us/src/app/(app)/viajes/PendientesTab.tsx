@@ -15,7 +15,13 @@ type WishlistRow = {
   profiles: { display_name: string } | null
 }
 
-export default function PendientesTab({ spaceId }: { spaceId: string }) {
+export default function PendientesTab({
+  spaceId,
+  zone,
+}: {
+  spaceId: string
+  zone: Zone | 'all'
+}) {
   const [rows, setRows] = useState<WishlistRow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -48,7 +54,7 @@ export default function PendientesTab({ spaceId }: { spaceId: string }) {
       rank: r.rank,
     }))
 
-  const merged = mergeWishlists(entries)
+  const merged = mergeWishlists(entries).filter((item) => zone === 'all' || item.zone === zone)
 
   if (loading) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>

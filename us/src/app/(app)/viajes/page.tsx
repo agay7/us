@@ -35,30 +35,27 @@ export default function ViajesPage() {
         </button>
       </div>
 
-      {tab === 'visitados' && (
-        <>
-          <div className="flex gap-2 p-3 text-xs">
-            <button
-              onClick={() => setZone('all')}
-              className={`rounded-full border px-3 py-1 ${zone === 'all' ? '' : 'opacity-50'}`}
-            >
-              Todas
-            </button>
-            {ZONES.map((z) => (
-              <button
-                key={z.value}
-                onClick={() => setZone(z.value)}
-                className={`rounded-full border px-3 py-1 ${zone === z.value ? '' : 'opacity-50'}`}
-              >
-                {z.icon} {z.label}
-              </button>
-            ))}
-          </div>
-          <VisitadosTab spaceId={spaceId} zone={zone} />
-        </>
-      )}
+      <div className="flex gap-2 p-3 text-xs">
+        <button
+          onClick={() => setZone('all')}
+          className={`rounded-full border px-3 py-1 ${zone === 'all' ? '' : 'opacity-50'}`}
+        >
+          Todas
+        </button>
+        {ZONES.map((z) => (
+          <button
+            key={z.value}
+            onClick={() => setZone(z.value)}
+            className={`rounded-full border px-3 py-1 ${zone === z.value ? '' : 'opacity-50'}`}
+          >
+            {z.icon} {z.label}
+          </button>
+        ))}
+      </div>
 
-      {tab === 'pendientes' && <PendientesTab spaceId={spaceId} />}
+      {tab === 'visitados' && <VisitadosTab spaceId={spaceId} zone={zone} />}
+
+      {tab === 'pendientes' && <PendientesTab spaceId={spaceId} zone={zone} />}
     </main>
   )
 }

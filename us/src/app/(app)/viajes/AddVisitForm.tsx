@@ -1,7 +1,7 @@
 // src/app/(app)/viajes/AddVisitForm.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ZONES, type Zone } from '@/lib/viajes/zones'
 
@@ -14,11 +14,21 @@ export default function AddVisitForm({
 }) {
   const [name, setName] = useState('')
   const [zone, setZone] = useState<Zone>('spain')
-  const [together, setTogether] = useState(true)
+  const [together, setTogether] = useState(false)
+  const [hasPartner, setHasPartner] = useState(false)
   const [month, setMonth] = useState('')
   const [photos, setPhotos] = useState<FileList | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('space_members')
+      .select('user_id')
+      .eq('space_id', spaceId)
+      .then(({ data }) => setHasPartner((data?.length ?? 0) >= 2))
+  }, [spaceId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -42,7 +52,7 @@ export default function AddVisitForm({
       p_place_id: placeId,
       p_visited_at: `${month}-01`,
       p_note: null,
-      p_together: together,
+      p_together: together && hasPartner,
     })
     if (visitError) {
       setLoading(false)
@@ -99,9 +109,17 @@ export default function AddVisitForm({
       </select>
 
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={together} onChange={(e) => setTogether(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={hasPartner && together}
+          disabled={!hasPartner}
+          onChange={(e) => setTogether(e.target.checked)}
+        />
         Fuimos juntos
       </label>
+      {!hasPartner && (
+        <p className="text-xs text-gray-500">Tu pareja todavía no se ha unido a este space.</p>
+      )}
 
       <label htmlFor="visit-month" className="sr-only">
         Mes y año de la visita
