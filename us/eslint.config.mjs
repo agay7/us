@@ -13,6 +13,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // This project's data-fetching pattern is a plain fetch-on-mount:
+      // `useCallback` a `load()` keyed on stable props, call it from a
+      // `useEffect`, and set state with the result (see VisitadosTab,
+      // PendientesTab). That's exactly what this rule flags, but the
+      // callback identity is stable (no infinite loop) and there's no
+      // data-fetching library in this project to route through instead.
+      // Every future module page will use the same idiom, so this is a
+      // project-wide decision, not a per-file suppression.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
