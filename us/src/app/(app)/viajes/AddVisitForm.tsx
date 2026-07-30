@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { geocodePlace } from '@/lib/viajes/geocode'
 import { ZONES, type Zone } from '@/lib/viajes/zones'
 
 export default function AddVisitForm({
@@ -36,10 +37,13 @@ export default function AddVisitForm({
     setLoading(true)
 
     const supabase = createClient()
+    const geocoded = await geocodePlace(name)
 
     const { data: placeId, error: placeError } = await supabase.rpc('find_or_create_place', {
       p_name: name,
       p_scope: zone,
+      p_lat: geocoded?.lat ?? null,
+      p_lng: geocoded?.lng ?? null,
     })
     if (placeError) {
       setLoading(false)
