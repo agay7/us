@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { formatVisitSummary, type Participant } from '@/lib/viajes/formatVisit'
+import { getMarkerCategory } from '@/lib/viajes/markerCategory'
 import type { Zone } from '@/lib/viajes/zones'
 import type { MapPlace } from './VisitMap'
 import AddVisitForm from './AddVisitForm'
@@ -23,6 +24,7 @@ type VisitRow = {
 
 export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone: Zone | 'all' }) {
   const [visits, setVisits] = useState<VisitRow[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const requestIdRef = useRef(0)
@@ -49,18 +51,38 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     load()
   }, [load])
 
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+  }, [])
+
   const filtered = visits.filter((v) => zone === 'all' || v.places?.scope === zone)
 
-  const mapPlaces: MapPlace[] = Array.from(
-    new Map(
-      filtered
-        .filter((v) => v.places?.lat != null && v.places?.lng != null)
-        .map((v) => [
-          v.places!.id,
-          { id: v.places!.id, name: v.places!.name, lat: v.places!.lat!, lng: v.places!.lng! },
-        ])
-    ).values()
-  )
+  const geolocated = filtered.filter((v) => v.places?.lat != null && v.places?.lng != null)
+
+  const visitsByPlace = new Map<string, VisitRow[]>()
+  for (const visit of geolocated) {
+    const placeId = visit.places!.id
+    const existing = visitsByPlace.get(placeId) ?? []
+    existing.push(visit)
+    visitsByPlace.set(placeId, existing)
+  }
+
+  const mapPlaces: MapPlace[] = currentUserId
+    ? Array.from(visitsByPlace.values()).map((placeVisits) => {
+        const place = placeVisits[0].places!
+        const participantsPerVisit = placeVisits.map((v) =>
+          v.place_visit_participants.map((p) => p.user_id)
+        )
+        return {
+          id: place.id,
+          name: place.name,
+          lat: place.lat!,
+          lng: place.lng!,
+          category: getMarkerCategory(participantsPerVisit, currentUserId),
+        }
+      })
+    : []
 
   if (loading) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>
