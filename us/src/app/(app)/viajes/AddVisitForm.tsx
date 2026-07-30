@@ -54,7 +54,7 @@ export default function AddVisitForm({
     const { data: visitId, error: visitError } = await supabase.rpc('add_visit', {
       p_space_id: spaceId,
       p_place_id: placeId,
-      p_visited_at: `${month}-01`,
+      p_visited_at: month ? `${month}-01` : null,
       p_note: null,
       p_together: together && hasPartner,
     })
@@ -125,13 +125,12 @@ export default function AddVisitForm({
         <p className="text-xs text-gray-500">Tu pareja todavía no se ha unido a este space.</p>
       )}
 
-      <label htmlFor="visit-month" className="sr-only">
-        Mes y año de la visita
+      <label htmlFor="visit-month" className="text-sm">
+        Mes y año de la visita (opcional)
       </label>
       <input
         id="visit-month"
         type="month"
-        required
         value={month}
         onChange={(e) => setMonth(e.target.value)}
         className="rounded border px-3 py-2"

@@ -17,4 +17,9 @@ describe('formatVisitSummary', () => {
     const result = formatVisitSummary([{ userId: 'b', displayName: 'Marta' }], '2019-06-01')
     expect(result).toBe('🧍 Marta en solitario · Junio de 2019')
   })
+
+  it('shows "fecha desconocida" when the visit has no date', () => {
+    const result = formatVisitSummary([{ userId: 'b', displayName: 'Marta' }], null)
+    expect(result).toBe('🧍 Marta en solitario · Fecha desconocida')
+  })
 })

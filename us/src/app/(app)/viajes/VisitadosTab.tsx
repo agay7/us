@@ -16,7 +16,7 @@ const VisitMap = dynamic(() => import('./VisitMap'), { ssr: false })
 
 type VisitRow = {
   id: string
-  visited_at: string
+  visited_at: string | null
   places: { id: string; name: string; scope: Zone; lat: number | null; lng: number | null } | null
   place_visit_participants: { user_id: string; profiles: { display_name: string } | null }[]
   visit_photos: { id: string }[]
@@ -39,7 +39,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
         'id, visited_at, places(id, name, scope, lat, lng), place_visit_participants(user_id, profiles(display_name)), visit_photos(id)'
       )
       .eq('space_id', spaceId)
-      .order('visited_at', { ascending: false })
+      .order('visited_at', { ascending: false, nullsFirst: false })
 
     if (requestId !== requestIdRef.current) return // a newer request already landed; discard this stale response
 
