@@ -75,7 +75,7 @@ export default function VisitMap({ places }: { places: MapPlace[] }) {
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: CATEGORY_COLOR.together }}
           />
-          Juntos
+          Los dos
         </span>
         <span className="flex items-center gap-1">
           <span

@@ -84,7 +84,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       })
     : []
 
-  if (loading) {
+  if (loading || currentUserId === null) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>
   }
 
