@@ -3,15 +3,25 @@
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
-// Loaded from a CDN rather than imported from node_modules: Leaflet's
-// default marker images don't resolve cleanly through Next.js's bundler
-// (a well-known Leaflet+webpack/Turbopack interop issue), and this app
-// has no image-hosting budget of its own to work around it differently.
+// Leaflet's default marker icon references relative image paths that
+// don't resolve through Next.js's bundler (a well-known Leaflet+webpack/
+// Turbopack interop issue) — importing the images that already ship
+// inside the installed `leaflet` package fixes it with no external
+// dependency (no CDN, no image-hosting budget needed).
+//
+// The `next-env.d.ts` image-import type says these imports are
+// `StaticImageData` ({ src, width, height, ... }), but this Next.js
+// version's Turbopack build resolves them to plain strings at runtime
+// (confirmed live — `.src` is undefined, the import itself is the URL).
+// Cast to match the actual runtime value rather than the stale type.
 const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconUrl: markerIcon as unknown as string,
+  iconRetinaUrl: markerIcon2x as unknown as string,
+  shadowUrl: markerShadow as unknown as string,
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
