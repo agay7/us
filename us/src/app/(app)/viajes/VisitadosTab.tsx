@@ -1,7 +1,7 @@
 // src/app/(app)/viajes/VisitadosTab.tsx
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { formatVisitSummary, type Participant } from '@/lib/viajes/formatVisit'
@@ -98,45 +98,52 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     load()
   }
 
-  const zoneFiltered = visits.filter((v) => zone === 'all' || v.places?.scope === zone)
+  // personFiltered's identity must stay stable across unrelated re-renders
+  // (toggling the list, entering edit mode) — VisitMap's fitBounds effect
+  // is keyed on the derived mapPlaces array below, and a new array on every
+  // render would reset the user's pan/zoom on every keystroke elsewhere.
+  const personFiltered = useMemo(() => {
+    const zoneFiltered = visits.filter((v) => zone === 'all' || v.places?.scope === zone)
 
-  const personFiltered =
-    currentUserId === null
-      ? []
-      : zoneFiltered.filter((v) => {
-          if (personFilter === 'all') return true
-          const category = getMarkerCategory(
-            [v.place_visit_participants.map((p) => p.user_id)],
-            currentUserId
-          )
-          return category === personFilter
-        })
+    if (currentUserId === null) return []
 
-  const geolocated = personFiltered.filter((v) => v.places?.lat != null && v.places?.lng != null)
+    return zoneFiltered.filter((v) => {
+      if (personFilter === 'all') return true
+      const category = getMarkerCategory(
+        [v.place_visit_participants.map((p) => p.user_id)],
+        currentUserId
+      )
+      return category === personFilter
+    })
+  }, [visits, zone, personFilter, currentUserId])
 
-  const visitsByPlace = new Map<string, VisitRow[]>()
-  for (const visit of geolocated) {
-    const placeId = visit.places!.id
-    const existing = visitsByPlace.get(placeId) ?? []
-    existing.push(visit)
-    visitsByPlace.set(placeId, existing)
-  }
+  const mapPlaces: MapPlace[] = useMemo(() => {
+    if (!currentUserId) return []
 
-  const mapPlaces: MapPlace[] = currentUserId
-    ? Array.from(visitsByPlace.values()).map((placeVisits) => {
-        const place = placeVisits[0].places!
-        const participantsPerVisit = placeVisits.map((v) =>
-          v.place_visit_participants.map((p) => p.user_id)
-        )
-        return {
-          id: place.id,
-          name: place.name,
-          lat: place.lat!,
-          lng: place.lng!,
-          category: getMarkerCategory(participantsPerVisit, currentUserId),
-        }
-      })
-    : []
+    const geolocated = personFiltered.filter((v) => v.places?.lat != null && v.places?.lng != null)
+
+    const visitsByPlace = new Map<string, VisitRow[]>()
+    for (const visit of geolocated) {
+      const placeId = visit.places!.id
+      const existing = visitsByPlace.get(placeId) ?? []
+      existing.push(visit)
+      visitsByPlace.set(placeId, existing)
+    }
+
+    return Array.from(visitsByPlace.values()).map((placeVisits) => {
+      const place = placeVisits[0].places!
+      const participantsPerVisit = placeVisits.map((v) =>
+        v.place_visit_participants.map((p) => p.user_id)
+      )
+      return {
+        id: place.id,
+        name: place.name,
+        lat: place.lat!,
+        lng: place.lng!,
+        category: getMarkerCategory(participantsPerVisit, currentUserId),
+      }
+    })
+  }, [personFiltered, currentUserId])
 
   if (loading || currentUserId === null) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>

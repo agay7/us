@@ -31,7 +31,6 @@ export default function EditVisitForm({
     const { error: updateError } = await supabase.rpc('update_visit', {
       p_visit_id: visitId,
       p_visited_at: month ? `${month}-01` : null,
-      p_note: null,
     })
     if (updateError) {
       setLoading(false)
