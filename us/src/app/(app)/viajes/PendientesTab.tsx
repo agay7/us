@@ -23,6 +23,7 @@ export default function PendientesTab({
   zone: Zone | 'all'
 }) {
   const [rows, setRows] = useState<WishlistRow[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const requestIdRef = useRef(0)
@@ -47,6 +48,23 @@ export default function PendientesTab({
     load()
   }, [load])
 
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+  }, [])
+
+  async function handleDelete(wishlistId: string) {
+    if (!window.confirm('¿Eliminar este sitio de tu lista de pendientes?')) return
+
+    const supabase = createClient()
+    const { error } = await supabase.rpc('delete_wishlist_item', { p_wishlist_id: wishlistId })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
   const entries: WishlistEntry[] = rows
     .filter((r) => r.places)
     .map((r) => ({
@@ -66,17 +84,25 @@ export default function PendientesTab({
 
   return (
     <div className="p-3">
-      {merged.map((item, index) => (
-        <div key={item.placeId} className="mb-2 flex items-center gap-2 rounded-xl bg-gray-100 p-2 text-gray-900">
-          <b className="w-5">{index + 1}</b>
-          <div className="flex-1">
-            <p className="font-bold">{item.placeName}</p>
-            <p className="text-xs opacity-80">
-              {zoneLabel(item.zone)} · {item.topForLabel}
-            </p>
+      {merged.map((item, index) => {
+        const myRow = rows.find((r) => r.places?.id === item.placeId && r.user_id === currentUserId)
+        return (
+          <div key={item.placeId} className="mb-2 flex items-center gap-2 rounded-xl bg-gray-100 p-2 text-gray-900">
+            <b className="w-5">{index + 1}</b>
+            <div className="flex-1">
+              <p className="font-bold">{item.placeName}</p>
+              <p className="text-xs opacity-80">
+                {zoneLabel(item.zone)} · {item.topForLabel}
+              </p>
+            </div>
+            {myRow && (
+              <button onClick={() => handleDelete(myRow.id)} className="shrink-0 text-xs text-red-600">
+                Eliminar
+              </button>
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       {merged.length === 0 && (
         <p className="py-6 text-center text-sm text-gray-500">Todavía no hay sitios pendientes.</p>

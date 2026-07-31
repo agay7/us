@@ -1,8 +1,10 @@
 'use client'
 
 import 'leaflet/dist/leaflet.css'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import type { Zone } from '@/lib/viajes/zones'
 
 export type MarkerCategory = 'together' | 'me' | 'partner'
 
@@ -45,16 +47,63 @@ export type MapPlace = {
   category: MarkerCategory
 }
 
-export default function VisitMap({ places }: { places: MapPlace[] }) {
-  const center: [number, number] = places[0] ? [places[0].lat, places[0].lng] : [20, 0]
-  const zoom = places.length > 0 ? 4 : 2
+// Static fallback view for a zone when the current filter has zero
+// geolocated markers in it (e.g. no visits to Spain yet) — so picking
+// "España" still shows Spanish territory instead of leaving the map on
+// whatever view it happened to have before. 'world'/'all' fall back to
+// the default world view further down instead of a fixed box.
+const ZONE_FALLBACK_BOUNDS: Partial<Record<Zone | 'all', [[number, number], [number, number]]>> = {
+  spain: [
+    [27.5, -18.5],
+    [43.9, 4.5],
+  ],
+  europe: [
+    [34, -25],
+    [72, 45],
+  ],
+}
 
+// Imperatively re-fits the map's view whenever the marker set or zone
+// changes: react-leaflet's <MapContainer center/zoom> props only apply on
+// first mount, so switching zones/filters needs an explicit fitBounds
+// call via the map instance (obtained through useMap()) to actually move
+// the view instead of just re-rendering markers in place.
+function FitBounds({ places, zone }: { places: MapPlace[]; zone: Zone | 'all' }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (places.length > 0) {
+      const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number]))
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
+      return
+    }
+
+    const fallback = ZONE_FALLBACK_BOUNDS[zone]
+    if (fallback) {
+      map.fitBounds(fallback, { padding: [30, 30] })
+    } else {
+      map.setView([20, 0], 2)
+    }
+  }, [places, zone, map])
+
+  return null
+}
+
+export default function VisitMap({
+  places,
+  zone,
+  partnerLabel,
+}: {
+  places: MapPlace[]
+  zone: Zone | 'all'
+  partnerLabel: string
+}) {
   return (
     <div>
-      <div className="h-64 w-full overflow-hidden rounded-xl">
+      <div className="h-[58vh] w-full overflow-hidden rounded-xl">
         <MapContainer
-          center={center}
-          zoom={zoom}
+          center={[20, 0]}
+          zoom={2}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={false}
         >
@@ -62,6 +111,7 @@ export default function VisitMap({ places }: { places: MapPlace[] }) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          <FitBounds places={places} zone={zone} />
           {places.map((place) => (
             <Marker key={place.id} position={[place.lat, place.lng]} icon={ICONS[place.category]}>
               <Popup>{place.name}</Popup>
@@ -70,13 +120,6 @@ export default function VisitMap({ places }: { places: MapPlace[] }) {
         </MapContainer>
       </div>
       <div className="flex gap-3 pt-2 text-xs text-gray-600">
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: CATEGORY_COLOR.together }}
-          />
-          Los dos
-        </span>
         <span className="flex items-center gap-1">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
@@ -89,7 +132,14 @@ export default function VisitMap({ places }: { places: MapPlace[] }) {
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: CATEGORY_COLOR.partner }}
           />
-          Tu pareja
+          {partnerLabel}
+        </span>
+        <span className="flex items-center gap-1">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: CATEGORY_COLOR.together }}
+          />
+          En común
         </span>
       </div>
     </div>
