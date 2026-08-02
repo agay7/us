@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { geocodePlace } from '@/lib/viajes/geocode'
 import { ZONES, type Zone } from '@/lib/viajes/zones'
+import PhotoPicker from './PhotoPicker'
 
 export default function AddVisitForm({
   spaceId,
@@ -139,13 +140,7 @@ export default function AddVisitForm({
       <label htmlFor="visit-photos" className="text-sm">
         Fotos (opcional)
       </label>
-      <input
-        id="visit-photos"
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => setPhotos(e.target.files)}
-      />
+      <PhotoPicker id="visit-photos" files={photos} onChange={setPhotos} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button

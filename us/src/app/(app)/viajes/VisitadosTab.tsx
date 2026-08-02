@@ -18,6 +18,7 @@ const VisitMap = dynamic(() => import('./VisitMap'), { ssr: false })
 type VisitRow = {
   id: string
   visited_at: string | null
+  created_by: string
   places: { id: string; name: string; scope: Zone; lat: number | null; lng: number | null } | null
   place_visit_participants: { user_id: string; profiles: { display_name: string } | null }[]
   visit_photos: { id: string }[]
@@ -43,7 +44,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     const { data } = await supabase
       .from('place_visits')
       .select(
-        'id, visited_at, places(id, name, scope, lat, lng), place_visit_participants(user_id, profiles(display_name)), visit_photos(id)'
+        'id, visited_at, created_by, places(id, name, scope, lat, lng), place_visit_participants(user_id, profiles(display_name)), visit_photos(id)'
       )
       .eq('space_id', spaceId)
       .order('visited_at', { ascending: false, nullsFirst: false })
@@ -121,13 +122,19 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
   // aggregation VisitMap's pins already use, kept in sync here so the list
   // and the map never disagree about which places are "en común".
   //
-  // Both derived arrays are memoized together so their identity stays
+  // All derived values are memoized together so their identity stays
   // stable across unrelated re-renders (toggling the list, entering edit
   // mode) — VisitMap's fitBounds effect is keyed on mapPlaces, and a new
   // array on every render would reset the user's pan/zoom on every
   // keystroke elsewhere.
-  const { personFiltered, mapPlaces } = useMemo(() => {
-    if (currentUserId === null) return { personFiltered: [] as VisitRow[], mapPlaces: [] as MapPlace[] }
+  const { personFiltered, mapPlaces, placeCategory } = useMemo(() => {
+    if (currentUserId === null) {
+      return {
+        personFiltered: [] as VisitRow[],
+        mapPlaces: [] as MapPlace[],
+        placeCategory: new Map<string, MarkerCategory>(),
+      }
+    }
 
     const zoneFiltered = visits.filter((v) => zone === 'all' || v.places?.scope === zone)
 
@@ -172,11 +179,83 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       }
     })
 
-    return { personFiltered, mapPlaces }
+    return { personFiltered, mapPlaces, placeCategory }
   }, [visits, zone, personFilter, currentUserId])
+
+  // With no single-category filter picked, split the list into "En
+  // común" / "Tú" / partner sections instead of one long flat list — the
+  // three groups read the same way the filter chips and legend already
+  // do. A specific filter chip already narrows to one category, so it
+  // stays a single flat list (a lone section header would be redundant).
+  const sections: { key: MarkerCategory; label: string; visits: VisitRow[] }[] = useMemo(() => {
+    if (personFilter !== 'all') {
+      return [{ key: personFilter, label: '', visits: personFiltered }]
+    }
+
+    const buckets: Record<MarkerCategory, VisitRow[]> = { together: [], me: [], partner: [] }
+    for (const visit of personFiltered) {
+      if (!visit.places) continue
+      const category = placeCategory.get(visit.places.id)
+      if (category) buckets[category].push(visit)
+    }
+
+    return [
+      { key: 'together' as const, label: 'En común', visits: buckets.together },
+      { key: 'me' as const, label: 'Tú', visits: buckets.me },
+      { key: 'partner' as const, label: partnerName ?? 'Tu pareja', visits: buckets.partner },
+    ].filter((section) => section.visits.length > 0)
+  }, [personFiltered, placeCategory, personFilter, partnerName])
 
   if (loading || currentUserId === null) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>
+  }
+
+  function renderVisitRow(visit: VisitRow) {
+    const participants: Participant[] = visit.place_visit_participants.map((p) => ({
+      userId: p.user_id,
+      displayName: p.profiles?.display_name ?? 'Alguien',
+    }))
+    const isEditing = editingVisitId === visit.id
+    const soloCategory: MarkerCategory = visit.created_by === currentUserId ? 'me' : 'partner'
+
+    return (
+      <div key={visit.id} className="mb-2 rounded-xl bg-gray-100 p-2 text-gray-900">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <p className="font-bold">{visit.places?.name}</p>
+            <p className="text-xs opacity-80">
+              {formatVisitSummary(participants, visit.visited_at)} · {visit.visit_photos.length} fotos
+            </p>
+          </div>
+          {!isEditing && (
+            <div className="flex shrink-0 gap-2 text-xs">
+              <button onClick={() => setEditingVisitId(visit.id)} className="text-blue-600">
+                Editar
+              </button>
+              <button onClick={() => handleDeleteVisit(visit.id)} className="text-red-600">
+                Eliminar
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isEditing && (
+          <EditVisitForm
+            spaceId={spaceId}
+            visitId={visit.id}
+            initialMonth={visit.visited_at ? visit.visited_at.slice(0, 7) : ''}
+            initialTogether={visit.place_visit_participants.length >= 2}
+            hasPartner={partnerName !== null}
+            soloCategory={soloCategory}
+            onDone={() => {
+              setEditingVisitId(null)
+              load()
+            }}
+            onCancel={() => setEditingVisitId(null)}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
@@ -222,52 +301,16 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
 
       {showList && (
         <div className="mt-2">
-          {personFiltered.map((visit) => {
-            const participants: Participant[] = visit.place_visit_participants.map((p) => ({
-              userId: p.user_id,
-              displayName: p.profiles?.display_name ?? 'Alguien',
-            }))
-            const isEditing = editingVisitId === visit.id
-            return (
-              <div key={visit.id} className="mb-2 rounded-xl bg-gray-100 p-2 text-gray-900">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <p className="font-bold">{visit.places?.name}</p>
-                    <p className="text-xs opacity-80">
-                      {formatVisitSummary(participants, visit.visited_at)} · {visit.visit_photos.length}{' '}
-                      fotos
-                    </p>
-                  </div>
-                  {!isEditing && (
-                    <div className="flex shrink-0 gap-2 text-xs">
-                      <button onClick={() => setEditingVisitId(visit.id)} className="text-blue-600">
-                        Editar
-                      </button>
-                      <button onClick={() => handleDeleteVisit(visit.id)} className="text-red-600">
-                        Eliminar
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {isEditing && (
-                  <EditVisitForm
-                    spaceId={spaceId}
-                    visitId={visit.id}
-                    initialMonth={visit.visited_at ? visit.visited_at.slice(0, 7) : ''}
-                    initialTogether={visit.place_visit_participants.length >= 2}
-                    hasPartner={partnerName !== null}
-                    partnerName={partnerName}
-                    onDone={() => {
-                      setEditingVisitId(null)
-                      load()
-                    }}
-                    onCancel={() => setEditingVisitId(null)}
-                  />
-                )}
-              </div>
-            )
-          })}
+          {sections.map((section) => (
+            <div key={section.key} className="mb-3">
+              {personFilter === 'all' && (
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {section.label} ({section.visits.length})
+                </h3>
+              )}
+              {section.visits.map(renderVisitRow)}
+            </div>
+          ))}
 
           {personFiltered.length === 0 && (
             <p className="py-6 text-center text-sm text-gray-500">Todavía no hay sitios visitados aquí.</p>

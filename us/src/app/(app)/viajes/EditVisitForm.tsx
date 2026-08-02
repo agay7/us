@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { CATEGORY_COLOR, type MarkerCategory } from '@/lib/viajes/markerCategory'
+import PhotoPicker from './PhotoPicker'
 
 export default function EditVisitForm({
   spaceId,
@@ -9,7 +11,7 @@ export default function EditVisitForm({
   initialMonth,
   initialTogether,
   hasPartner,
-  partnerName,
+  soloCategory,
   onDone,
   onCancel,
 }: {
@@ -18,7 +20,7 @@ export default function EditVisitForm({
   initialMonth: string
   initialTogether: boolean
   hasPartner: boolean
-  partnerName: string | null
+  soloCategory: MarkerCategory
   onDone: () => void
   onCancel: () => void
 }) {
@@ -27,6 +29,8 @@ export default function EditVisitForm({
   const [photos, setPhotos] = useState<FileList | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const previewCategory: MarkerCategory = hasPartner && together ? 'together' : soloCategory
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -86,7 +90,11 @@ export default function EditVisitForm({
           disabled={!hasPartner}
           onChange={(e) => setTogether(e.target.checked)}
         />
-        {partnerName ? `Fuimos juntos (con ${partnerName})` : 'Fuimos juntos'}
+        <span
+          className="inline-block h-3 w-3 shrink-0 rounded-full"
+          style={{ backgroundColor: CATEGORY_COLOR[previewCategory] }}
+        />
+        Fuimos juntos
       </label>
       {!hasPartner && (
         <p className="text-xs text-gray-500">Tu pareja todavía no se ha unido a este space.</p>
@@ -95,13 +103,7 @@ export default function EditVisitForm({
       <label htmlFor={`edit-photos-${visitId}`} className="text-sm">
         Añadir más fotos (opcional)
       </label>
-      <input
-        id={`edit-photos-${visitId}`}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={(e) => setPhotos(e.target.files)}
-      />
+      <PhotoPicker id={`edit-photos-${visitId}`} files={photos} onChange={setPhotos} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">

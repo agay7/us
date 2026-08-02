@@ -5,14 +5,7 @@ import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import type { Zone } from '@/lib/viajes/zones'
-
-export type MarkerCategory = 'together' | 'me' | 'partner'
-
-const CATEGORY_COLOR: Record<MarkerCategory, string> = {
-  together: '#8b5cf6', // violeta
-  me: '#f97316', // naranja
-  partner: '#14b8a6', // verde azulado
-}
+import { CATEGORY_COLOR, type MarkerCategory } from '@/lib/viajes/markerCategory'
 
 // SVG pins drawn inline instead of Leaflet's default image-based marker:
 // sidesteps the Leaflet+Next.js bundler asset issues entirely (already
