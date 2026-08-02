@@ -7,16 +7,23 @@ export default function EditVisitForm({
   spaceId,
   visitId,
   initialMonth,
+  initialTogether,
+  hasPartner,
+  partnerName,
   onDone,
   onCancel,
 }: {
   spaceId: string
   visitId: string
   initialMonth: string
+  initialTogether: boolean
+  hasPartner: boolean
+  partnerName: string | null
   onDone: () => void
   onCancel: () => void
 }) {
   const [month, setMonth] = useState(initialMonth)
+  const [together, setTogether] = useState(initialTogether)
   const [photos, setPhotos] = useState<FileList | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,6 +38,7 @@ export default function EditVisitForm({
     const { error: updateError } = await supabase.rpc('update_visit', {
       p_visit_id: visitId,
       p_visited_at: month ? `${month}-01` : null,
+      p_together: hasPartner && together,
     })
     if (updateError) {
       setLoading(false)
@@ -70,6 +78,19 @@ export default function EditVisitForm({
         onChange={(e) => setMonth(e.target.value)}
         className="rounded border px-3 py-2"
       />
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={hasPartner && together}
+          disabled={!hasPartner}
+          onChange={(e) => setTogether(e.target.checked)}
+        />
+        {partnerName ? `Fuimos juntos (con ${partnerName})` : 'Fuimos juntos'}
+      </label>
+      {!hasPartner && (
+        <p className="text-xs text-gray-500">Tu pareja todavía no se ha unido a este space.</p>
+      )}
 
       <label htmlFor={`edit-photos-${visitId}`} className="text-sm">
         Añadir más fotos (opcional)

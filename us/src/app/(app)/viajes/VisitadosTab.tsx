@@ -255,6 +255,9 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
                     spaceId={spaceId}
                     visitId={visit.id}
                     initialMonth={visit.visited_at ? visit.visited_at.slice(0, 7) : ''}
+                    initialTogether={visit.place_visit_participants.length >= 2}
+                    hasPartner={partnerName !== null}
+                    partnerName={partnerName}
                     onDone={() => {
                       setEditingVisitId(null)
                       load()
