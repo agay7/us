@@ -66,16 +66,29 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       setCurrentUserId(uid)
       if (!uid) return
 
+      // space_members.user_id references auth.users directly (not
+      // profiles.user_id), so PostgREST has no FK to auto-embed profiles
+      // here — unlike place_visit_participants/place_wishlist, which were
+      // pointed at profiles specifically to allow that embed. Two-step
+      // lookup instead of a nested select.
       const { data: members } = await supabase
         .from('space_members')
-        .select('user_id, profiles(display_name)')
+        .select('user_id')
         .eq('space_id', spaceId)
 
-      const partner = (
-        members as unknown as { user_id: string; profiles: { display_name: string } | null }[] | null
-      )?.find((m) => m.user_id !== uid)
+      const partnerId = members?.find((m) => m.user_id !== uid)?.user_id
+      if (!partnerId) {
+        setPartnerName(null)
+        return
+      }
 
-      setPartnerName(partner?.profiles?.display_name ?? null)
+      const { data: partnerProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', partnerId)
+        .maybeSingle()
+
+      setPartnerName(partnerProfile?.display_name ?? null)
     }
     loadIdentity()
   }, [spaceId])
