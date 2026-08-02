@@ -111,30 +111,48 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     load()
   }
 
-  // personFiltered's identity must stay stable across unrelated re-renders
-  // (toggling the list, entering edit mode) — VisitMap's fitBounds effect
-  // is keyed on the derived mapPlaces array below, and a new array on every
-  // render would reset the user's pan/zoom on every keystroke elsewhere.
-  const personFiltered = useMemo(() => {
+  // A place counts as "en común" if the two of you have EVER been there
+  // between you — including two separate solo visits, not just a single
+  // visit event with both participants attached (bulk-imported history is
+  // almost entirely separate solo visits per place, so requiring a shared
+  // visit event would make "En común" match almost nothing). So the person
+  // filter groups by place first and categorizes each place from ALL of
+  // its visits, then filters visits by their place's category — the same
+  // aggregation VisitMap's pins already use, kept in sync here so the list
+  // and the map never disagree about which places are "en común".
+  //
+  // Both derived arrays are memoized together so their identity stays
+  // stable across unrelated re-renders (toggling the list, entering edit
+  // mode) — VisitMap's fitBounds effect is keyed on mapPlaces, and a new
+  // array on every render would reset the user's pan/zoom on every
+  // keystroke elsewhere.
+  const { personFiltered, mapPlaces } = useMemo(() => {
+    if (currentUserId === null) return { personFiltered: [] as VisitRow[], mapPlaces: [] as MapPlace[] }
+
     const zoneFiltered = visits.filter((v) => zone === 'all' || v.places?.scope === zone)
 
-    if (currentUserId === null) return []
+    const visitsByPlaceId = new Map<string, VisitRow[]>()
+    for (const visit of zoneFiltered) {
+      if (!visit.places) continue
+      const existing = visitsByPlaceId.get(visit.places.id) ?? []
+      existing.push(visit)
+      visitsByPlaceId.set(visit.places.id, existing)
+    }
 
-    return zoneFiltered.filter((v) => {
-      if (personFilter === 'all') return true
-      const category = getMarkerCategory(
-        [v.place_visit_participants.map((p) => p.user_id)],
-        currentUserId
+    const placeCategory = new Map<string, MarkerCategory>()
+    for (const [placeId, placeVisits] of visitsByPlaceId) {
+      const participantsPerVisit = placeVisits.map((v) =>
+        v.place_visit_participants.map((p) => p.user_id)
       )
-      return category === personFilter
-    })
-  }, [visits, zone, personFilter, currentUserId])
+      placeCategory.set(placeId, getMarkerCategory(participantsPerVisit, currentUserId))
+    }
 
-  const mapPlaces: MapPlace[] = useMemo(() => {
-    if (!currentUserId) return []
+    const personFiltered = zoneFiltered.filter((v) => {
+      if (personFilter === 'all') return true
+      return v.places != null && placeCategory.get(v.places.id) === personFilter
+    })
 
     const geolocated = personFiltered.filter((v) => v.places?.lat != null && v.places?.lng != null)
-
     const visitsByPlace = new Map<string, VisitRow[]>()
     for (const visit of geolocated) {
       const placeId = visit.places!.id
@@ -143,20 +161,19 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       visitsByPlace.set(placeId, existing)
     }
 
-    return Array.from(visitsByPlace.values()).map((placeVisits) => {
+    const mapPlaces: MapPlace[] = Array.from(visitsByPlace.values()).map((placeVisits) => {
       const place = placeVisits[0].places!
-      const participantsPerVisit = placeVisits.map((v) =>
-        v.place_visit_participants.map((p) => p.user_id)
-      )
       return {
         id: place.id,
         name: place.name,
         lat: place.lat!,
         lng: place.lng!,
-        category: getMarkerCategory(participantsPerVisit, currentUserId),
+        category: placeCategory.get(place.id)!,
       }
     })
-  }, [personFiltered, currentUserId])
+
+    return { personFiltered, mapPlaces }
+  }, [visits, zone, personFilter, currentUserId])
 
   if (loading || currentUserId === null) {
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>
