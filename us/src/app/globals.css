@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Every card/surface in this app (bg-white, bg-gray-100, etc.) is styled
+   for a light background regardless of the page's own dark-mode flip
+   above — form controls need to match. Without this, a native <select>'s
+   dropdown list picks up the OS/browser dark theme inconsistently (some
+   browsers render individual <option> rows with mismatched fg/bg,
+   producing unreadable white-on-white or black-on-black rows). Forcing
+   light color-scheme keeps every input/select/textarea readable
+   regardless of the visitor's system theme. */
+input,
+select,
+textarea {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #111827;
+}

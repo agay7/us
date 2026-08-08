@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { formatVisitSummary, type Participant } from '@/lib/viajes/formatVisit'
 import { getMarkerCategory, type MarkerCategory } from '@/lib/viajes/markerCategory'
+import { usePartnerName } from '@/lib/viajes/usePartnerName'
 import type { Zone } from '@/lib/viajes/zones'
 import type { MapPlace } from './VisitMap'
 import AddVisitForm from './AddVisitForm'
@@ -29,7 +30,7 @@ type PersonFilter = 'all' | MarkerCategory
 export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone: Zone | 'all' }) {
   const [visits, setVisits] = useState<VisitRow[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [partnerName, setPartnerName] = useState<string | null>(null)
+  const partnerName = usePartnerName(spaceId, currentUserId)
   const [personFilter, setPersonFilter] = useState<PersonFilter>('all')
   const [showList, setShowList] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -61,38 +62,8 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
 
   useEffect(() => {
     const supabase = createClient()
-    async function loadIdentity() {
-      const { data: userData } = await supabase.auth.getUser()
-      const uid = userData.user?.id ?? null
-      setCurrentUserId(uid)
-      if (!uid) return
-
-      // space_members.user_id references auth.users directly (not
-      // profiles.user_id), so PostgREST has no FK to auto-embed profiles
-      // here — unlike place_visit_participants/place_wishlist, which were
-      // pointed at profiles specifically to allow that embed. Two-step
-      // lookup instead of a nested select.
-      const { data: members } = await supabase
-        .from('space_members')
-        .select('user_id')
-        .eq('space_id', spaceId)
-
-      const partnerId = members?.find((m) => m.user_id !== uid)?.user_id
-      if (!partnerId) {
-        setPartnerName(null)
-        return
-      }
-
-      const { data: partnerProfile } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('user_id', partnerId)
-        .maybeSingle()
-
-      setPartnerName(partnerProfile?.display_name ?? null)
-    }
-    loadIdentity()
-  }, [spaceId])
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+  }, [])
 
   async function handleDeleteVisit(visitId: string) {
     if (!window.confirm('¿Seguro que quieres eliminar esta visita? No se puede deshacer.')) return
