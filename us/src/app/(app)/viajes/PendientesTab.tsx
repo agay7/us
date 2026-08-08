@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { mergeWishlists, type WishlistEntry } from '@/lib/viajes/wishlistMerge'
-import { usePartnerName } from '@/lib/viajes/usePartnerName'
+import { usePartnerInfo } from '@/lib/usePartnerName'
 import { zoneLabel, type Zone } from '@/lib/viajes/zones'
 import AddWishlistForm from './AddWishlistForm'
 
@@ -25,7 +25,7 @@ export default function PendientesTab({
 }) {
   const [rows, setRows] = useState<WishlistRow[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const partnerName = usePartnerName(spaceId, currentUserId)
+  const { partnerName } = usePartnerInfo(spaceId, currentUserId)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const requestIdRef = useRef(0)

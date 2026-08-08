@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { formatVisitSummary, type Participant } from '@/lib/viajes/formatVisit'
 import { getMarkerCategory, type MarkerCategory } from '@/lib/viajes/markerCategory'
-import { usePartnerName } from '@/lib/viajes/usePartnerName'
+import { usePartnerInfo } from '@/lib/usePartnerName'
 import type { Zone } from '@/lib/viajes/zones'
 import type { MapPlace } from './VisitMap'
 import AddVisitForm from './AddVisitForm'
@@ -30,7 +30,7 @@ type PersonFilter = 'all' | MarkerCategory
 export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone: Zone | 'all' }) {
   const [visits, setVisits] = useState<VisitRow[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const partnerName = usePartnerName(spaceId, currentUserId)
+  const { partnerName } = usePartnerInfo(spaceId, currentUserId)
   const [personFilter, setPersonFilter] = useState<PersonFilter>('all')
   const [showList, setShowList] = useState(false)
   const [showForm, setShowForm] = useState(false)

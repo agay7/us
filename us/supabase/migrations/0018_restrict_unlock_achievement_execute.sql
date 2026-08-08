@@ -1,0 +1,24 @@
+-- supabase/migrations/0018_restrict_unlock_achievement_execute.sql
+--
+-- unlock_achievement was meant to be an internal helper only ever called
+-- from within complete_challenge (also SECURITY DEFINER) — 0017 revoked
+-- it from public/anon but never explicitly granted it to authenticated,
+-- assuming that meant it stayed inaccessible to clients. It didn't: a live
+-- grants check right after applying 0017 showed `authenticated` already
+-- had EXECUTE on it — Supabase's ALTER DEFAULT PRIVILEGES grants EXECUTE
+-- to authenticated on every new function regardless of whether a
+-- migration grants it explicitly, the same mechanism behind the earlier
+-- "revoke from public isn't enough, anon needs it too" lesson (see
+-- 0010), just on the authenticated side this time.
+--
+-- Unlike shares_space_with (0010, kept grantable to authenticated because
+-- it only reveals "do we share a space", the caller's own information),
+-- unlock_achievement takes an arbitrary p_user_id/p_space_id and performs
+-- no auth.uid() or membership check at all — called directly by a client
+-- it would let any authenticated user fabricate achievement unlocks for
+-- anyone, in any space. It must only ever run as the SECURITY DEFINER
+-- owner via complete_challenge's internal call, which this revoke does
+-- not block (that call executes as the function owner, not the original
+-- client role).
+
+revoke execute on function public.unlock_achievement(uuid, uuid, text) from authenticated;
