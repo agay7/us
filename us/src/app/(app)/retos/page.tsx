@@ -102,7 +102,11 @@ export default function RetosPage() {
     const supabase = createClient()
     const { error } = await supabase.rpc('complete_challenge', { p_challenge_id: challengeId })
     if (error) {
-      alert(error.message)
+      alert(
+        error.message === 'already_completed_this_week'
+          ? 'Ya has marcado este reto esta semana. Vuelve la semana que viene.'
+          : error.message
+      )
       return
     }
     load()
