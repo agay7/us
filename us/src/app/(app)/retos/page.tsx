@@ -112,6 +112,18 @@ export default function RetosPage() {
     load()
   }
 
+  async function handleDelete(challengeId: string) {
+    if (!window.confirm('¿Eliminar este reto? No se puede deshacer.')) return
+
+    const supabase = createClient()
+    const { error } = await supabase.rpc('delete_challenge', { p_challenge_id: challengeId })
+    if (error) {
+      alert(error.message)
+      return
+    }
+    load()
+  }
+
   const leaderboard = useMemo(() => {
     const entries: PointEntry[] = completions
       .map((c) => {
@@ -197,7 +209,14 @@ export default function RetosPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="shrink-0 text-xs text-gray-500">Esperando respuesta</span>
+                    <div className="flex shrink-0 items-center gap-2 text-xs">
+                      <span className="text-gray-500">Esperando respuesta</span>
+                      {isCreator && (
+                        <button onClick={() => handleDelete(c.id)} className="text-red-600">
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -210,6 +229,7 @@ export default function RetosPage() {
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Activos</h3>
             {active.map((c) => {
               const canComplete = c.assigned_to === null || c.assigned_to === currentUserId
+              const isCreator = c.created_by === currentUserId
               return (
                 <div
                   key={c.id}
@@ -224,11 +244,18 @@ export default function RetosPage() {
                         : `+${c.points} pts · ${c.assigned_to ? nameFor(c.assigned_to) : 'Para los dos'}`}
                     </p>
                   </div>
-                  {canComplete && (
-                    <button onClick={() => handleComplete(c.id)} className="shrink-0 text-xs text-blue-600">
-                      Completar
-                    </button>
-                  )}
+                  <div className="flex shrink-0 gap-2 text-xs">
+                    {canComplete && (
+                      <button onClick={() => handleComplete(c.id)} className="text-blue-600">
+                        Completar
+                      </button>
+                    )}
+                    {isCreator && (
+                      <button onClick={() => handleDelete(c.id)} className="text-red-600">
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -240,6 +267,7 @@ export default function RetosPage() {
             <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Completados</h3>
             {completedList.map((c) => {
               const completion = completions.find((cc) => cc.challenge_id === c.id)
+              const isCreator = c.created_by === currentUserId
               return (
                 <div key={c.id} className="mb-2 flex items-center gap-2 rounded-xl bg-gray-100 p-2 text-gray-900 opacity-85">
                   <div className="text-xl">✅</div>
@@ -249,6 +277,11 @@ export default function RetosPage() {
                       Completado por {completion ? nameFor(completion.user_id) : '?'} · +{c.points} pts
                     </p>
                   </div>
+                  {isCreator && (
+                    <button onClick={() => handleDelete(c.id)} className="shrink-0 text-xs text-red-600">
+                      Eliminar
+                    </button>
+                  )}
                 </div>
               )
             })}
