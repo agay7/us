@@ -5,7 +5,7 @@ import { useSpaceId } from '@/lib/space-context'
 import { createClient } from '@/lib/supabase/client'
 import { usePartnerInfo } from '@/lib/usePartnerName'
 import { computeLeaderboard, type PointEntry } from '@/lib/retos/points'
-import { computeStreakWeeks } from '@/lib/retos/streak'
+import { computeStreakWeeks } from '@/lib/streak'
 import ProposeChallengeForm from './ProposeChallengeForm'
 
 type ChallengeStatus = 'pending_acceptance' | 'active' | 'completed' | 'declined'
