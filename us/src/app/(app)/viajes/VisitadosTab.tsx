@@ -11,6 +11,7 @@ import type { Zone } from '@/lib/viajes/zones'
 import type { MapPlace } from './VisitMap'
 import AddVisitForm from './AddVisitForm'
 import EditVisitForm from './EditVisitForm'
+import VisitPhotos from './VisitPhotos'
 
 // Leaflet touches `window` at module load — it can't be part of the
 // server-rendered HTML for this (already client-only) tab.
@@ -22,7 +23,7 @@ type VisitRow = {
   created_by: string
   places: { id: string; name: string; scope: Zone; lat: number | null; lng: number | null } | null
   place_visit_participants: { user_id: string; profiles: { display_name: string } | null }[]
-  visit_photos: { id: string }[]
+  visit_photos: { id: string; url: string }[]
 }
 
 type PersonFilter = 'all' | MarkerCategory
@@ -32,11 +33,14 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const { partnerName } = usePartnerInfo(spaceId, currentUserId)
   const [personFilter, setPersonFilter] = useState<PersonFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [showList, setShowList] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null)
+  const [highlightedPlaceId, setHighlightedPlaceId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const requestIdRef = useRef(0)
+  const placeCardRefs = useRef(new Map<string, HTMLDivElement>())
 
   const load = useCallback(async () => {
     const requestId = ++requestIdRef.current
@@ -45,7 +49,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     const { data } = await supabase
       .from('place_visits')
       .select(
-        'id, visited_at, created_by, places(id, name, scope, lat, lng), place_visit_participants(user_id, profiles(display_name)), visit_photos(id)'
+        'id, visited_at, created_by, places(id, name, scope, lat, lng), place_visit_participants(user_id, profiles(display_name)), visit_photos(id, url)'
       )
       .eq('space_id', spaceId)
       .order('visited_at', { ascending: false, nullsFirst: false })
@@ -82,6 +86,25 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     }
     load()
   }
+
+  // Tapping a pin opens the list (if it was collapsed) and scrolls to
+  // that place's card instead of a cramped Leaflet popup — the card
+  // already has everything (dates, who, photos, edit/delete), no need to
+  // duplicate any of it in a bubble on the map itself.
+  function handleSelectPlace(placeId: string) {
+    setShowList(true)
+    setHighlightedPlaceId(placeId)
+  }
+
+  useEffect(() => {
+    if (!highlightedPlaceId || !showList) return
+
+    const card = placeCardRefs.current.get(highlightedPlaceId)
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    const timeout = setTimeout(() => setHighlightedPlaceId(null), 2500)
+    return () => clearTimeout(timeout)
+  }, [highlightedPlaceId, showList])
 
   // A place counts as "en común" if the two of you have EVER been there
   // between you — including two separate solo visits, not just a single
@@ -134,9 +157,15 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       placeCategory.set(placeId, getMarkerCategory(participantsPerVisit, currentUserId))
     }
 
+    const query = searchQuery.trim().toLowerCase()
     const personFiltered = zoneFiltered.filter((v) => {
-      if (personFilter === 'all') return true
-      return v.places != null && placeCategory.get(v.places.id) === personFilter
+      if (personFilter !== 'all' && (v.places == null || placeCategory.get(v.places.id) !== personFilter)) {
+        return false
+      }
+      if (query && !v.places?.name.toLowerCase().includes(query)) {
+        return false
+      }
+      return true
     })
 
     const geolocated = personFiltered.filter((v) => v.places?.lat != null && v.places?.lng != null)
@@ -160,7 +189,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     })
 
     return { personFiltered, mapPlaces, placeCategory }
-  }, [visits, zone, personFilter, currentUserId])
+  }, [visits, zone, personFilter, currentUserId, searchQuery])
 
   // With no single-category filter picked, split the list into "En
   // común" / "Tú" / partner sections instead of one long flat list — the
@@ -198,6 +227,8 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     const isEditing = editingVisitId === visit.id
     const soloCategory: MarkerCategory = visit.created_by === currentUserId ? 'me' : 'partner'
 
+    const photoPaths = visit.visit_photos.map((p) => p.url)
+
     return (
       <div key={visit.id}>
         <div className="flex items-center gap-2 py-0.5">
@@ -215,6 +246,8 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
             </div>
           )}
         </div>
+
+        <VisitPhotos paths={photoPaths} />
 
         {isEditing && (
           <EditVisitForm
@@ -259,8 +292,18 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
 
   function renderPlaceCard(placeVisits: VisitRow[]) {
     const place = placeVisits[0].places!
+    const isHighlighted = highlightedPlaceId === place.id
     return (
-      <div key={place.id} className="mb-2 rounded-xl bg-gray-100 p-2 text-gray-900">
+      <div
+        key={place.id}
+        ref={(el) => {
+          if (el) placeCardRefs.current.set(place.id, el)
+          else placeCardRefs.current.delete(place.id)
+        }}
+        className={`mb-2 rounded-xl bg-gray-100 p-2 text-gray-900 transition-shadow ${
+          isHighlighted ? 'ring-2 ring-blue-500' : ''
+        }`}
+      >
         <p className="font-bold">{place.name}</p>
         {placeVisits.map(renderVisitEntry)}
       </div>
@@ -269,6 +312,18 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
 
   return (
     <div className="p-3">
+      <label htmlFor="visited-search" className="sr-only">
+        Buscar un sitio
+      </label>
+      <input
+        id="visited-search"
+        type="search"
+        placeholder="🔍 Buscar un sitio..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="mb-2 w-full rounded border px-3 py-2 text-sm"
+      />
+
       <div className="mb-2 flex flex-wrap gap-2 text-xs">
         <button
           onClick={() => setPersonFilter('all')}
@@ -298,7 +353,12 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
         )}
       </div>
 
-      <VisitMap places={mapPlaces} zone={zone} partnerLabel={partnerName ?? 'Tu pareja'} />
+      <VisitMap
+        places={mapPlaces}
+        zone={zone}
+        partnerLabel={partnerName ?? 'Tu pareja'}
+        onSelectPlace={handleSelectPlace}
+      />
 
       <button
         onClick={() => setShowList((s) => !s)}
@@ -322,7 +382,11 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
           ))}
 
           {personFiltered.length === 0 && (
-            <p className="py-6 text-center text-sm text-gray-500">Todavía no hay sitios visitados aquí.</p>
+            <p className="py-6 text-center text-sm text-gray-500">
+              {searchQuery.trim()
+                ? `No hay ningún sitio que coincida con "${searchQuery.trim()}".`
+                : 'Todavía no hay sitios visitados aquí.'}
+            </p>
           )}
         </div>
       )}

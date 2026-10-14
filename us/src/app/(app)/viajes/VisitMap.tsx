@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import type { Zone } from '@/lib/viajes/zones'
@@ -116,10 +116,12 @@ export default function VisitMap({
   places,
   zone,
   partnerLabel,
+  onSelectPlace,
 }: {
   places: MapPlace[]
   zone: Zone | 'all'
   partnerLabel: string
+  onSelectPlace: (placeId: string) => void
 }) {
   return (
     <div>
@@ -149,9 +151,12 @@ export default function VisitMap({
             spiderfyOnMaxZoom
           >
             {places.map((place) => (
-              <Marker key={place.id} position={[place.lat, place.lng]} icon={ICONS[place.category]}>
-                <Popup>{place.name}</Popup>
-              </Marker>
+              <Marker
+                key={place.id}
+                position={[place.lat, place.lng]}
+                icon={ICONS[place.category]}
+                eventHandlers={{ click: () => onSelectPlace(place.id) }}
+              />
             ))}
           </MarkerClusterGroup>
         </MapContainer>
