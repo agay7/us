@@ -130,11 +130,17 @@ export default function VisitMap({
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={false}
         >
+          {/* Esri's free "Light Gray Canvas" raster tiles (no API key
+              required, unlike CARTO's basemaps.cartocdn.com which started
+              requiring one) — base layer has the muted gray terrain, the
+              reference layer stacked on top adds labels/borders. Note the
+              {y}/{x} order: Esri's classic MapServer tile scheme is
+              z/row/col, the reverse of the {x}/{y} most other providers use. */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            subdomains="abcd"
+            attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+            url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
           />
+          <TileLayer url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}" />
           <FitBounds places={places} zone={zone} />
           <MarkerClusterGroup
             chunkedLoading
