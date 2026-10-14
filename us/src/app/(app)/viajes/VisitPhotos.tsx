@@ -1,13 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+type Photo = { id: string; url: string }
 
 // The visit-photos bucket is private, so a stored path isn't viewable
 // directly — it needs a signed URL per photo. Fetched lazily here (only
 // for visits actually rendered, and only once per mount) rather than
 // eagerly for the whole list, since most visits have zero photos anyway.
-export default function VisitPhotos({ paths }: { paths: string[] }) {
+//
+// Takes the raw `photos` array (not a pre-mapped `string[]` of paths) and
+// derives paths internally via useMemo: `visit.visit_photos` keeps the
+// same array reference across unrelated re-renders of the parent tab
+// (search, filters, editing a different visit), but a `.map()` done in
+// the caller before passing it down would produce a new array every
+// render, re-triggering this component's fetch effect on every keystroke
+// elsewhere on the page.
+export default function VisitPhotos({ photos }: { photos: Photo[] }) {
+  const paths = useMemo(() => photos.map((p) => p.url), [photos])
   const [urls, setUrls] = useState<string[]>([])
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
@@ -31,6 +42,15 @@ export default function VisitPhotos({ paths }: { paths: string[] }) {
       cancelled = true
     }
   }, [paths])
+
+  useEffect(() => {
+    if (!lightboxUrl) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxUrl(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightboxUrl])
 
   if (paths.length === 0) return null
 

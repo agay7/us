@@ -91,9 +91,18 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
   // that place's card instead of a cramped Leaflet popup — the card
   // already has everything (dates, who, photos, edit/delete), no need to
   // duplicate any of it in a bubble on the map itself.
+  //
+  // selectionToken increments on every tap, including a second tap on the
+  // same already-highlighted pin — without it, setting highlightedPlaceId
+  // to the value it already holds is a no-op in React (same state, no
+  // re-render), so the scroll/highlight-reset effect below would never
+  // re-fire for a repeat tap on the same place.
+  const [selectionToken, setSelectionToken] = useState(0)
+
   function handleSelectPlace(placeId: string) {
     setShowList(true)
     setHighlightedPlaceId(placeId)
+    setSelectionToken((t) => t + 1)
   }
 
   useEffect(() => {
@@ -104,7 +113,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
 
     const timeout = setTimeout(() => setHighlightedPlaceId(null), 2500)
     return () => clearTimeout(timeout)
-  }, [highlightedPlaceId, showList])
+  }, [highlightedPlaceId, showList, selectionToken])
 
   // A place counts as "en común" if the two of you have EVER been there
   // between you — including two separate solo visits, not just a single
@@ -227,8 +236,6 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     const isEditing = editingVisitId === visit.id
     const soloCategory: MarkerCategory = visit.created_by === currentUserId ? 'me' : 'partner'
 
-    const photoPaths = visit.visit_photos.map((p) => p.url)
-
     return (
       <div key={visit.id}>
         <div className="flex items-center gap-2 py-0.5">
@@ -247,7 +254,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
           )}
         </div>
 
-        <VisitPhotos paths={photoPaths} />
+        <VisitPhotos photos={visit.visit_photos} />
 
         {isEditing && (
           <EditVisitForm
