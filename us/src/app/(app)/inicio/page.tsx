@@ -17,6 +17,7 @@ type ChallengeRow = {
   status: string
   created_by: string
   assigned_to: string | null
+  created_at: string
 }
 type CompletionRow = { user_id: string; challenge_id: string; completed_at: string }
 
@@ -86,14 +87,16 @@ export default function InicioPage() {
       supabase.from('place_visits').select('id, place_visit_participants(user_id)').eq('space_id', spaceId),
       supabase
         .from('challenges')
-        .select('id, title, points, status, created_by, assigned_to')
-        .eq('space_id', spaceId),
+        .select('id, title, points, status, created_by, assigned_to, created_at')
+        .eq('space_id', spaceId)
+        .order('created_at', { ascending: true }),
+      // Unlimited: the points leaderboard needs every completion ever
+      // made, not just the most recent ones — the final activity feed
+      // below takes care of capping what's shown on screen.
       supabase
         .from('challenge_completions')
         .select('user_id, challenge_id, completed_at')
-        .eq('space_id', spaceId)
-        .order('completed_at', { ascending: false })
-        .limit(5),
+        .eq('space_id', spaceId),
       supabase
         .from('goals')
         .select('id, title, category, status, target_amount, current_amount')
