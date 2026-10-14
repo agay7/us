@@ -1,8 +1,11 @@
 'use client'
 
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import type { Zone } from '@/lib/viajes/zones'
 import { CATEGORY_COLOR, type MarkerCategory } from '@/lib/viajes/markerCategory'
@@ -30,6 +33,33 @@ const ICONS: Record<MarkerCategory, L.DivIcon> = {
   together: coloredIcon('together'),
   me: coloredIcon('me'),
   partner: coloredIcon('partner'),
+}
+
+// A cluster can mix categories (together/me/partner pins), so it gets a
+// neutral color of its own rather than borrowing one of the three —
+// borrowing one would wrongly imply every pin inside shares that category.
+const CLUSTER_COLOR = '#334155'
+
+function clusterIcon(cluster: { getChildCount: () => number }) {
+  const count = cluster.getChildCount()
+  const size = count < 10 ? 34 : count < 100 ? 40 : 46
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      background:${CLUSTER_COLOR};
+      color:#fff;
+      width:${size}px;
+      height:${size}px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font:600 ${size < 40 ? 13 : 14}px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      border:2px solid #ffffffcc;
+      box-shadow:0 1px 4px rgba(0,0,0,0.35);
+    ">${count}</div>`,
+    iconSize: [size, size],
+  })
 }
 
 export type MapPlace = {
@@ -101,15 +131,22 @@ export default function VisitMap({
           scrollWheelZoom={false}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
           <FitBounds places={places} zone={zone} />
-          {places.map((place) => (
-            <Marker key={place.id} position={[place.lat, place.lng]} icon={ICONS[place.category]}>
-              <Popup>{place.name}</Popup>
-            </Marker>
-          ))}
+          <MarkerClusterGroup
+            chunkedLoading
+            iconCreateFunction={clusterIcon}
+            maxClusterRadius={50}
+            spiderfyOnMaxZoom
+          >
+            {places.map((place) => (
+              <Marker key={place.id} position={[place.lat, place.lng]} icon={ICONS[place.category]}>
+                <Popup>{place.name}</Popup>
+              </Marker>
+            ))}
+          </MarkerClusterGroup>
         </MapContainer>
       </div>
       <div className="flex gap-3 pt-2 text-xs text-gray-600">

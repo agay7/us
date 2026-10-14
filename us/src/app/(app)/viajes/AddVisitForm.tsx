@@ -9,9 +9,11 @@ import PhotoPicker from './PhotoPicker'
 
 export default function AddVisitForm({
   spaceId,
+  existingPlaceNames,
   onDone,
 }: {
   spaceId: string
+  existingPlaceNames: Set<string>
   onDone: () => void
 }) {
   const [name, setName] = useState('')
@@ -32,9 +34,17 @@ export default function AddVisitForm({
       .then(({ data }) => setHasPartner((data?.length ?? 0) >= 2))
   }, [spaceId])
 
+  const isDuplicate = existingPlaceNames.has(name.trim().toLowerCase())
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (isDuplicate) {
+      setError('Ese sitio ya está en tu lista de visitados. Edita esa entrada si fue de otra forma (juntos o por separado).')
+      return
+    }
+
     setLoading(true)
 
     const supabase = createClient()
@@ -96,6 +106,11 @@ export default function AddVisitForm({
         onChange={(e) => setName(e.target.value)}
         className="rounded border px-3 py-2"
       />
+      {isDuplicate && (
+        <p className="text-xs text-amber-600">
+          Ya tienes &quot;{name.trim()}&quot; registrado. Edita esa visita en la lista si fue de otra forma.
+        </p>
+      )}
 
       <label htmlFor="place-zone" className="sr-only">
         Zona
@@ -145,7 +160,7 @@ export default function AddVisitForm({
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || isDuplicate}
         className="rounded bg-blue-600 py-2 text-white disabled:opacity-50"
       >
         {loading ? 'Guardando...' : 'Guardar'}

@@ -98,6 +98,15 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
   // mode) — VisitMap's fitBounds effect is keyed on mapPlaces, and a new
   // array on every render would reset the user's pan/zoom on every
   // keystroke elsewhere.
+  // Space-wide (not zone/person-filtered): adding "Gredos" should be
+  // blocked regardless of which zone or person filter happens to be
+  // active right now, since the duplicate would still exist once you
+  // switch back.
+  const existingPlaceNames = useMemo(
+    () => new Set(visits.filter((v) => v.places).map((v) => v.places!.name.trim().toLowerCase())),
+    [visits]
+  )
+
   const { personFiltered, mapPlaces, placeCategory } = useMemo(() => {
     if (currentUserId === null) {
       return {
@@ -181,7 +190,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     return <p className="p-4 text-sm text-gray-500">Cargando...</p>
   }
 
-  function renderVisitRow(visit: VisitRow) {
+  function renderVisitEntry(visit: VisitRow) {
     const participants: Participant[] = visit.place_visit_participants.map((p) => ({
       userId: p.user_id,
       displayName: p.profiles?.display_name ?? 'Alguien',
@@ -190,14 +199,11 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
     const soloCategory: MarkerCategory = visit.created_by === currentUserId ? 'me' : 'partner'
 
     return (
-      <div key={visit.id} className="mb-2 rounded-xl bg-gray-100 p-2 text-gray-900">
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <p className="font-bold">{visit.places?.name}</p>
-            <p className="text-xs opacity-80">
-              {formatVisitSummary(participants, visit.visited_at)} · {visit.visit_photos.length} fotos
-            </p>
-          </div>
+      <div key={visit.id}>
+        <div className="flex items-center gap-2 py-0.5">
+          <p className="flex-1 text-xs opacity-80">
+            {formatVisitSummary(participants, visit.visited_at)} · {visit.visit_photos.length} fotos
+          </p>
           {!isEditing && (
             <div className="flex shrink-0 gap-2 text-xs">
               <button onClick={() => setEditingVisitId(visit.id)} className="text-blue-600">
@@ -225,6 +231,38 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
             onCancel={() => setEditingVisitId(null)}
           />
         )}
+      </div>
+    )
+  }
+
+  // Bulk-imported history logs each person's trip to a place as its own
+  // separate visit row, so the same place could show up as two cards
+  // ("Gredos" visited solo by one of you, "Gredos" visited by both) —
+  // confusing, since to a reader it's the same place twice. Group by
+  // place so it's one card either way, with each underlying visit listed
+  // as its own line (so "juntos" and "por separado" both still show, and
+  // each keeps its own edit/delete).
+  function groupByPlace(groupVisits: VisitRow[]): VisitRow[][] {
+    const byPlaceId = new Map<string, VisitRow[]>()
+    for (const visit of groupVisits) {
+      if (!visit.places) continue
+      const existing = byPlaceId.get(visit.places.id) ?? []
+      existing.push(visit)
+      byPlaceId.set(visit.places.id, existing)
+    }
+    return Array.from(byPlaceId.values())
+  }
+
+  function countPlaces(countVisits: VisitRow[]): number {
+    return new Set(countVisits.filter((v) => v.places).map((v) => v.places!.id)).size
+  }
+
+  function renderPlaceCard(placeVisits: VisitRow[]) {
+    const place = placeVisits[0].places!
+    return (
+      <div key={place.id} className="mb-2 rounded-xl bg-gray-100 p-2 text-gray-900">
+        <p className="font-bold">{place.name}</p>
+        {placeVisits.map(renderVisitEntry)}
       </div>
     )
   }
@@ -266,7 +304,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
         onClick={() => setShowList((s) => !s)}
         className="mt-3 flex w-full items-center justify-between rounded-xl bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-900"
       >
-        <span>Lista de sitios ({personFiltered.length})</span>
+        <span>Lista de sitios ({countPlaces(personFiltered)})</span>
         <span>{showList ? '▲' : '▼'}</span>
       </button>
 
@@ -276,10 +314,10 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
             <div key={section.key} className="mb-3">
               {personFilter === 'all' && (
                 <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {section.label} ({section.visits.length})
+                  {section.label} ({countPlaces(section.visits)})
                 </h3>
               )}
-              {section.visits.map(renderVisitRow)}
+              {groupByPlace(section.visits).map(renderPlaceCard)}
             </div>
           ))}
 
@@ -292,6 +330,7 @@ export default function VisitadosTab({ spaceId, zone }: { spaceId: string; zone:
       {showForm ? (
         <AddVisitForm
           spaceId={spaceId}
+          existingPlaceNames={existingPlaceNames}
           onDone={() => {
             setShowForm(false)
             load()
